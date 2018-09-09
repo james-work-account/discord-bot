@@ -1,0 +1,11 @@
+{
+  "name": "discordbot",
+  "version": "1.0.0",
+  "description": "discord bot for l5r dice rolls",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "James Whiteley",
+  "license": "ISC"
+}
