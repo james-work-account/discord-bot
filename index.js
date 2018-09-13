@@ -5,50 +5,24 @@ const prefix = "!roll";
 const help = "!roll help";
 const [noexpl, add, expl9, reroll1] = ["noexpl", "add", "expl9", "reroll1"]
 
-const helptext = {embed: {
-    color: 3447003,
-    author: {
-      name: client.author
-    },
-    title: "Rolling Buddy Help",
-    description: "How to use Rolling Buddy commands",
-    fields: [{
-        name: "Basic format",
-        value: "{number to roll}k{number to keep}"
-      },
-      {
-        name: "Other arguments",
-        value: `  - noexpl: No dice explode (eg: \`!roll 5k4 noexpl\`)
+const helptext = `\
+-------------------------------------------------------------------------------------------------
+Basic format: {number to roll}k{number to keep}
+Examples:
+  \`!roll 4k3\`
+  \`!roll 10k10\`
+
+Other arguments:
+  - noexpl: No dice explode (eg: \`!roll 5k4 noexpl\`)
   - add {number to add}: Add a flat amount to your roll (eg: \`!roll 5k4 add 3\`)
   - expl9: Explode on 9's as well as 10's (eg: \`!roll 5k4 expl9\`)
-  - reroll1: Re-roll 1's once per original 1 (eg: \`!roll 5k4 reroll1\`)`
-      },
-      {
-        name: "These arguments can be combined",
-        value: "For example: `!roll 5k4 expl9 add 4`"
-      }
-    ],
-    timestamp: new Date()
-  }
-}
-// `\
-// -------------------------------------------------------------------------------------------------
-// Basic format: {number to roll}k{number to keep}
-// Examples:
-//   \`!roll 4k3\`
-//   \`!roll 10k10\`
+  - reroll1: Re-roll 1's once per original 1 (eg: \`!roll 5k4 reroll1\`)
 
-// Other arguments:
-//   - noexpl: No dice explode (eg: \`!roll 5k4 noexpl\`)
-//   - add {number to add}: Add a flat amount to your roll (eg: \`!roll 5k4 add 3\`)
-//   - expl9: Explode on 9's as well as 10's (eg: \`!roll 5k4 expl9\`)
-//   - reroll1: Re-roll 1's once per original 1 (eg: \`!roll 5k4 reroll1\`)
-
-// These arguments can be combined, for example: \`!roll 5k4 expl9 add 4\`
-// -------------------------------------------------------------------------------------------------`;
+These arguments can be combined, for example: \`!roll 5k4 expl9 add 4\`
+-------------------------------------------------------------------------------------------------`;
 
 const rollKeepRegex = /(\d+)k(\d+)/;
-const regexFailResponse = "Incorrect input format. Correct format example: 8k4 (k = keep)";
+const regexFailResponse = "Incorrect input format. Correct format example: `!roll 8k4` (k = keep)";
 const numberComparisonFailResponse = "Number of dice kept is greater than number rolled.";
 const ruleMap = new Map([
     [noexpl, "no explode"],
@@ -57,10 +31,11 @@ const ruleMap = new Map([
     [reroll1, "re-roll 1's"]
 ])
 
-const formatOutput = function (array, sum, rules, extraAdded) {
-    const sumBeforeExtra = +sum - +extraAdded
-    const ruleText = (rules != "") ? `Rule(s) applied: ${rules.map(rule => ruleMap.get(rule)).filter(n => n).join(", ")} - ` : ""
-    const output = `${ruleText}[ ${array.join(" + ")} = ${(sum != sumBeforeExtra ? `${sumBeforeExtra} + ${extraAdded} = ` : "")}_**${sum}**_ ]`
+const formatOutput = function (array, sum, rules, extraAdded, message) {
+    const authorToMention = message.author.toString();
+    const sumBeforeExtra = +sum - +extraAdded;
+    const ruleText = (rules != "") ? `Rule(s) applied: ${rules.map(rule => ruleMap.get(rule)).filter(n => n).map(x => `_${x}_`).join(", ")} - ` : "";
+    const output = `${authorToMention} - ${ruleText}[ ${array.join(" + ")} = ${(sum != sumBeforeExtra ? `${sumBeforeExtra} + ${extraAdded} = ` : "")}_**${sum}**_ ]`;
     return output;
 };
 
@@ -141,7 +116,7 @@ client.on('message', message => {
     } else if (message.content.startsWith(help)) {
         message.channel.send(helptext);
     } else {
-        const args = message.content.slice(prefix.length + 1).split(' ');
+        const args = message.content.slice(prefix.length).trim().split(' ');
         const [rollInput, ...argsTail] = args;
 
         const response = (!rollKeepRegex.test(rollInput) ? regexFailResponse : function () {
@@ -150,7 +125,7 @@ client.on('message', message => {
             return (!(roll >= keep) ? numberComparisonFailResponse : function () {
                 const rollInfo = getRolls(roll, keep, argsTail);
                 const [keepArray, rollTotal, extraAdded] = [rollInfo[0], rollInfo[1], rollInfo[2]];
-                return formatOutput(keepArray, rollTotal, argsTail, extraAdded);
+                return formatOutput(keepArray, rollTotal, argsTail, extraAdded, message);
             }());
         }());
 
