@@ -3,7 +3,8 @@ const Discord = require('discord.js');
 const client = new Discord.Client();
 const prefix = "!roll";
 const help = "!roll help";
-const [noexpl, add, expl9, reroll1] = ["noexpl", "add", "expl9", "reroll1"]
+const bye = "bye bye, rolling buddy!";
+const [noexpl, add, expl9, reroll1, keepall] = ["noexpl", "add", "expl9", "reroll1", "keepall"];
 
 const helptext = `\
 -------------------------------------------------------------------------------------------------
@@ -17,6 +18,7 @@ Other arguments:
   - add {number to add}: Add a flat amount to your roll (eg: \`!roll 5k4 add 3\`)
   - expl9: Explode on 9's as well as 10's (eg: \`!roll 5k4 expl9\`)
   - reroll1: Re-roll 1's once per original 1 (eg: \`!roll 5k4 reroll1\`)
+  - keepall: Keep all dice instead of just highest (eg: \`!roll 5k4 keepall\`)
 
 These arguments can be combined, for example: \`!roll 5k4 expl9 add 4\`
 -------------------------------------------------------------------------------------------------`;
@@ -28,14 +30,21 @@ const ruleMap = new Map([
     [noexpl, "no explode"],
     [add, "add flat number"],
     [expl9, "explode on 9's"],
-    [reroll1, "re-roll 1's"]
+    [reroll1, "re-roll 1's"],
+    [keepall, "keep all dice"]
 ])
 
-const formatOutput = function (array, sum, rules, extraAdded, message) {
+const formatOutput = function (array, sum, rules, extraAdded, message, originalArray) {
     const authorToMention = message.author.toString();
     const sumBeforeExtra = +sum - +extraAdded;
     const ruleText = (rules != "") ? `Rule(s) applied: ${rules.map(rule => ruleMap.get(rule)).filter(n => n).map(x => `_${x}_`).join(", ")} - ` : "";
-    const output = `${authorToMention} - ${ruleText}[ ${array.join(" + ")} = ${(sum != sumBeforeExtra ? `${sumBeforeExtra} + ${extraAdded} = ` : "")}_**${sum}**_ ]`;
+    const output = function() {
+        if(originalArray === undefined || originalArray.length == 0) {
+            return `${authorToMention} - ${ruleText}[ ${array.join(" + ")} = ${(sum != sumBeforeExtra ? `${sumBeforeExtra} + ${extraAdded} = ` : "")}_**${sum}**_ ]`;
+        } else {
+            return `${authorToMention} - ${ruleText}[ ${array.join(" + ")} ${(sum != sumBeforeExtra) ? ` _+ ${extraAdded}_ ` : ``}]`;
+        }
+    }();
     return output;
 };
 
@@ -74,7 +83,11 @@ let getRolls = function (roll, keep, args = []) {
             }
         });
     };
-    filteredArray = diceArray.slice(0, keep);
+    if(args.includes(keepall)) {
+        filteredArray = diceArray
+    } else {
+        filteredArray = diceArray.slice(0, keep);
+    }
     if (!args.includes(noexpl)) {
         filteredArray = filteredArray.map(x => {
             if (x == 10) {
@@ -101,7 +114,9 @@ let getRolls = function (roll, keep, args = []) {
     }
     const summedArray = +(filteredArray.reduce((a, b) => a + b, 0)) + +extraToAdd;
 
-    return [filteredArray, summedArray, extraToAdd];
+    const originalArray = (args.includes(keepall) ? filteredArray : []);
+
+    return [filteredArray, summedArray, extraToAdd, originalArray];
 };
 
 // ************ RUNNING THE BOT STUFF ************ //
@@ -111,10 +126,17 @@ client.on('ready', () => {
 });
 
 client.on('message', message => {
-    if (!message.content.startsWith(prefix) || message.author.bot) {
+    if (message.author.bot) {
         return;
     } else if (message.content.startsWith(help)) {
         message.channel.send(helptext);
+    } else if(message.content.toLowerCase() == bye){
+        const author = message.author.toString();
+        const byeResponse = `Farewell, ${author}!`;
+        
+        message.channel.send(byeResponse);
+    } else if(!message.content.startsWith(prefix)){
+        return;
     } else {
         const args = message.content.slice(prefix.length).trim().split(' ');
         const [rollInput, ...argsTail] = args;
@@ -124,8 +146,8 @@ client.on('message', message => {
             const [roll, keep] = [arr[1], arr[2]];
             return (!(roll >= keep) ? numberComparisonFailResponse : function () {
                 const rollInfo = getRolls(roll, keep, argsTail);
-                const [keepArray, rollTotal, extraAdded] = [rollInfo[0], rollInfo[1], rollInfo[2]];
-                return formatOutput(keepArray, rollTotal, argsTail, extraAdded, message);
+                const [keepArray, rollTotal, extraAdded, originalArray] = [rollInfo[0], rollInfo[1], rollInfo[2], rollInfo[3]];
+                return formatOutput(keepArray, rollTotal, argsTail, extraAdded, message, originalArray);
             }());
         }());
 
