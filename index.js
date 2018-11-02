@@ -1,5 +1,5 @@
-const Creds = require("./creds")
-const Discord = require('discord.js');
+const Creds = require("./creds");
+const Discord = require("discord.js");
 const client = new Discord.Client();
 const prefix = "!roll";
 const help = "!roll help";
@@ -32,84 +32,95 @@ const ruleMap = new Map([
     [expl9, "explode on 9's"],
     [reroll1, "re-roll 1's"],
     [keepall, "keep all dice"]
-])
+]);
 
 const formatOutput = function (array, sum, rules, extraAdded, message, originalArray) {
     const authorToMention = message.author.toString();
     const sumBeforeExtra = +sum - +extraAdded;
-    const ruleText = (rules != "") ? `Rule(s) applied: ${rules.map(rule => ruleMap.get(rule)).filter(n => n).map(x => `_${x}_`).join(", ")} - ` : "";
-    const output = function() {
+    const ruleText = (rules !== "") ? `Rule(s) applied: ${rules.map(rule => ruleMap.get(rule)).filter(n => n).map(x => `_${x}_`).join(", ")} - ` : "";
+    const outTextUndefinedOriginal = (sum !== sumBeforeExtra) ? `${sumBeforeExtra} + ${extraAdded} = ` : "";
+    const outTextDefinedOriginal = (sum !== sumBeforeExtra) ? ` _+ ${extraAdded}_ ` : ``;
+    const output = (function() {
         if(originalArray === undefined || originalArray.length == 0) {
-            return `${authorToMention} - ${ruleText}[ ${array.join(" + ")} = ${(sum != sumBeforeExtra ? `${sumBeforeExtra} + ${extraAdded} = ` : "")}_**${sum}**_ ]`;
+            return `${authorToMention} - ${ruleText}[ ${array.join(" + ")} = ${outTextUndefinedOriginal}_**${sum}**_ ]`;
         } else {
-            return `${authorToMention} - ${ruleText}[ ${array.join(" + ")} ${(sum != sumBeforeExtra) ? ` _+ ${extraAdded}_ ` : ``}]`;
+            return `${authorToMention} - ${ruleText}[ ${array.join(" + ")} ${outTextDefinedOriginal}]`;
         }
-    }();
+    }());
     return output;
 };
 
 // ************ MATHS STUFF ************ //
 
 const getNewNumber = function () {
-    return Math.floor(Math.random() * 10 + 1)
-}
+    return Math.floor(Math.random() * 10 + 1);
+};
 
 const explode = function (numToExplode, explodeValue = 10) {
     const newNumber = getNewNumber();
-    if (newNumber == explodeValue) {
+    if (newNumber === explodeValue) {
         return explode(numToExplode + newNumber);
     } else {
         return numToExplode + newNumber;
     }
 };
 
-let getRolls = function (roll, keep, args = []) {
-    let diceArray = (
+const getDiceArray = function(roll) {
+    return (
         Array(roll)
         .fill() // empty array of size `roll`
-        .map(_ => getNewNumber()) // fill with random numbers between 1 and 10
+        .map((_) => getNewNumber()) // fill with random numbers between 1 and 10
         .sort(function (a, b) {
             return b - a;
         }) // sort highest to lowest
     );
-    let filteredArray = []
+};
+
+const getRolls = function (roll, keep, args = []) {
+    let diceArray = getDiceArray(roll);
+    let filteredArray = [];
+    
     // apply extra args
     if (args.includes(reroll1)) {
-        diceArray = diceArray.map(x => {
-            if (x == 1) {
+        diceArray = diceArray.map((x) => {
+            if (x === 1) {
                 return getNewNumber();
             } else {
                 return x;
             }
         });
-    };
+    }
+    
     if(args.includes(keepall)) {
-        filteredArray = diceArray
+        filteredArray = diceArray;
     } else {
         filteredArray = diceArray.slice(0, keep);
     }
+
     if (!args.includes(noexpl)) {
-        filteredArray = filteredArray.map(x => {
-            if (x == 10) {
+        filteredArray = filteredArray.map((x) => {
+            if (x === 10) {
                 return explode(x);
             } else {
                 return x;
             }
         });
     }
-    let extraToAdd = 0
-    for (arg in args) {
-        if (args[arg] == expl9 && !args.includes(noexpl)) {
-            filteredArray = filteredArray.map(x => {
-                if (x == 9) {
+
+    let extraToAdd = 0;
+    for (let arg in args) {
+        const currentArg = args[arg];
+        if (currentArg === expl9 && !args.includes(noexpl)) {
+            filteredArray = filteredArray.map((x) => {
+                if (x === 9) {
                     return explode(x, 9);
                 } else {
                     return x;
                 }
             });
-        };
-        if (args[arg] == add) {
-            extraToAdd = args[+arg + 1]
+        }
+        if (currentArg === add) {
+            extraToAdd = args[+arg + 1];
         }
     }
     const summedArray = +(filteredArray.reduce((a, b) => a + b, 0)) + +extraToAdd;
@@ -119,38 +130,40 @@ let getRolls = function (roll, keep, args = []) {
     return [filteredArray, summedArray, extraToAdd, originalArray];
 };
 
+const getResponse = function(rollInput, argsTail) {
+    return (!rollKeepRegex.test(rollInput) ? regexFailResponse : function () {
+        const arr = rollKeepRegex.exec(rollInput).map((x) => +x); // get elements from regex capture groups, convert to Ints
+        const [roll, keep] = [arr[1], arr[2]];
+        return (!(roll >= keep) ? numberComparisonFailResponse : function () {
+            const rollInfo = getRolls(roll, keep, argsTail);
+            const [keepArray, rollTotal, extraAdded, originalArray] = [rollInfo[0], rollInfo[1], rollInfo[2], rollInfo[3]];
+            return formatOutput(keepArray, rollTotal, argsTail, extraAdded, message, originalArray);
+        }());
+    }());
+}
+
 // ************ RUNNING THE BOT STUFF ************ //
 
-client.on('ready', () => {
-    console.log('Ready!');
+client.on("ready", () => {
+    console.log("Ready!");
 });
 
-client.on('message', message => {
+client.on("message", message => {
     if (message.author.bot) {
         return;
     } else if (message.content.startsWith(help)) {
         message.channel.send(helptext);
-    } else if(message.content.toLowerCase() == bye){
+    } else if(message.content.toLowerCase() === bye){
         const author = message.author.toString();
         const byeResponse = `Farewell, ${author}!`;
-        
+    
         message.channel.send(byeResponse);
     } else if(!message.content.startsWith(prefix)){
         return;
     } else {
-        const args = message.content.slice(prefix.length).trim().split(' ');
+        const args = message.content.slice(prefix.length).trim().split(" ");
         const [rollInput, ...argsTail] = args;
-
-        const response = (!rollKeepRegex.test(rollInput) ? regexFailResponse : function () {
-            const arr = rollKeepRegex.exec(rollInput).map(x => +x); // get elements from regex capture groups, convert to Ints
-            const [roll, keep] = [arr[1], arr[2]];
-            return (!(roll >= keep) ? numberComparisonFailResponse : function () {
-                const rollInfo = getRolls(roll, keep, argsTail);
-                const [keepArray, rollTotal, extraAdded, originalArray] = [rollInfo[0], rollInfo[1], rollInfo[2], rollInfo[3]];
-                return formatOutput(keepArray, rollTotal, argsTail, extraAdded, message, originalArray);
-            }());
-        }());
-
+        const response = getResponse(rollInput, argsTail);
         message.channel.send(response);
     };
 });
