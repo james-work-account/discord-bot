@@ -2,7 +2,8 @@ const Creds = require("./creds");
 const Discord = require("discord.js");
 const client = new Discord.Client();
 const prefix = "!roll";
-const help = "!roll help";
+const rollhelp = "!roll help";
+const help = "!help"
 const bye = "bye bye, rolling buddy!";
 const [noexpl, add, expl9, reroll1, keepall] = ["noexpl", "add", "expl9", "reroll1", "keepall"];
 
@@ -37,11 +38,11 @@ const ruleMap = new Map([
 const formatOutput = function (array, sum, rules, extraAdded, message, originalArray) {
     const authorToMention = message.author.toString();
     const sumBeforeExtra = +sum - +extraAdded;
-    const ruleText = (rules !== "") ? `Rule(s) applied: ${rules.map(rule => ruleMap.get(rule)).filter(n => n).map(x => `_${x}_`).join(", ")} - ` : "";
+    const ruleText = (rules !== "") ? `Rule(s) applied: ${rules.map((rule) => ruleMap.get(rule)).filter((n) => n).map((x) => `_${x}_`).join(", ")} - ` : "";
     const outTextUndefinedOriginal = (sum !== sumBeforeExtra) ? `${sumBeforeExtra} + ${extraAdded} = ` : "";
     const outTextDefinedOriginal = (sum !== sumBeforeExtra) ? ` _+ ${extraAdded}_ ` : ``;
     const output = (function() {
-        if(originalArray === undefined || originalArray.length == 0) {
+        if(originalArray === undefined || originalArray.length === 0) {
             return `${authorToMention} - ${ruleText}[ ${array.join(" + ")} = ${outTextUndefinedOriginal}_**${sum}**_ ]`;
         } else {
             return `${authorToMention} - ${ruleText}[ ${array.join(" + ")} ${outTextDefinedOriginal}]`;
@@ -130,17 +131,17 @@ const getRolls = function (roll, keep, args = []) {
     return [filteredArray, summedArray, extraToAdd, originalArray];
 };
 
-const getResponse = function(rollInput, argsTail) {
-    return (!rollKeepRegex.test(rollInput) ? regexFailResponse : function () {
+const getResponse = function(rollInput, argsTail, message) {
+    return ((!rollKeepRegex.test(rollInput)) ? regexFailResponse : function () {
         const arr = rollKeepRegex.exec(rollInput).map((x) => +x); // get elements from regex capture groups, convert to Ints
         const [roll, keep] = [arr[1], arr[2]];
-        return (!(roll >= keep) ? numberComparisonFailResponse : function () {
+        return ((!(roll >= keep)) ? numberComparisonFailResponse : function () {
             const rollInfo = getRolls(roll, keep, argsTail);
             const [keepArray, rollTotal, extraAdded, originalArray] = [rollInfo[0], rollInfo[1], rollInfo[2], rollInfo[3]];
             return formatOutput(keepArray, rollTotal, argsTail, extraAdded, message, originalArray);
         }());
     }());
-}
+};
 
 // ************ RUNNING THE BOT STUFF ************ //
 
@@ -148,10 +149,10 @@ client.on("ready", () => {
     console.log("Ready!");
 });
 
-client.on("message", message => {
+client.on("message", (message) => {
     if (message.author.bot) {
         return;
-    } else if (message.content.startsWith(help)) {
+    } else if (message.content.startsWith(help) || message.content.startsWith(rollhelp)) {
         message.channel.send(helptext);
     } else if(message.content.toLowerCase() === bye){
         const author = message.author.toString();
@@ -163,9 +164,9 @@ client.on("message", message => {
     } else {
         const args = message.content.slice(prefix.length).trim().split(" ");
         const [rollInput, ...argsTail] = args;
-        const response = getResponse(rollInput, argsTail);
+        const response = getResponse(rollInput, argsTail, message);
         message.channel.send(response);
-    };
+    }
 });
 
 client.login(Creds.loginCred());
