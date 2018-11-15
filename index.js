@@ -4,7 +4,6 @@ const client = new Discord.Client();
 const prefix = "!roll";
 const rollhelp = "!roll help";
 const help = "!help"
-const bye = "bye bye, rolling buddy!";
 const [noexpl, add, expl9, reroll1, keepall] = ["noexpl", "add", "expl9", "reroll1", "keepall"];
 
 const helptext = `\
@@ -150,17 +149,10 @@ client.on("ready", () => {
 });
 
 client.on("message", (message) => {
-    if (message.author.bot) {
+    if (message.author.bot || !message.content.startsWith(prefix)) {
         return;
     } else if (message.content.startsWith(help) || message.content.startsWith(rollhelp)) {
         message.channel.send(helptext);
-    } else if(message.content.toLowerCase() === bye){
-        const author = message.author.toString();
-        const byeResponse = `Farewell, ${author}!`;
-    
-        message.channel.send(byeResponse);
-    } else if(!message.content.startsWith(prefix)){
-        return;
     } else {
         const args = message.content.slice(prefix.length).trim().split(" ");
         const [rollInput, ...argsTail] = args;
